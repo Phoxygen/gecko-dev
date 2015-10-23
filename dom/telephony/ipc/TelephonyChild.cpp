@@ -134,6 +134,8 @@ TelephonyRequestChild::Recv__delete__(const IPCTelephonyResponse& aResponse)
       return DoResponse(aResponse.get_DialResponseCallSuccess());
     case IPCTelephonyResponse::TDialResponseMMISuccess:
       return DoResponse(aResponse.get_DialResponseMMISuccess());
+    case IPCTelephonyResponse::TDialResponseSessionSuccess:
+      return DoResponse(aResponse.get_DialResponseSessionSuccess());
     case IPCTelephonyResponse::TDialResponseMMIError:
       return DoResponse(aResponse.get_DialResponseMMIError());
     default:
@@ -240,6 +242,18 @@ TelephonyRequestChild::DoResponse(const DialResponseMMISuccess& aResponse)
       MOZ_CRASH("Received invalid type!");
       break;
   }
+
+  return true;
+}
+bool
+TelephonyRequestChild::DoResponse(const DialResponseSessionSuccess& aResponse)
+{
+  MOZ_ASSERT(mCallback);
+  nsCOMPtr<nsITelephonyDialCallback> callback = do_QueryInterface(mCallback);
+
+  nsAutoString statusMessage(aResponse.statusMessage());
+
+  callback->NotifyDialMMISuccessWithSession(aResponse.clientId(), statusMessage);
 
   return true;
 }

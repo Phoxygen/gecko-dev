@@ -640,6 +640,8 @@ dictionary MozMMIResult
    * requests provide extra information along with the status message, this
    * information can be a number, an array of string keys or an array of
    * MozCallForwardingOptions.
+   * USSD requests on the other hand can provide the USSD session as extra
+   * information.
    *
    * And it should be
    * (unsigned short or sequence<DOMString> or sequence<MozCallForwardingOptions>)

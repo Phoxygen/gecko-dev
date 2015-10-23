@@ -6,6 +6,7 @@
 
 #include "TelephonyDialCallback.h"
 
+#include "mozilla/dom/USSDSession.h"
 #include "mozilla/dom/MozMobileConnectionBinding.h"
 #include "nsIMobileCallForwardingOptions.h"
 #include "nsIMobileConnectionService.h"
@@ -21,7 +22,6 @@ TelephonyDialCallback::TelephonyDialCallback(nsPIDOMWindow* aWindow,
                                              Promise* aPromise)
   : TelephonyCallback(aPromise), mWindow(aWindow), mTelephony(aTelephony)
 {
-  MOZ_ASSERT(mTelephony);
 }
 
 nsresult
@@ -56,6 +56,9 @@ TelephonyDialCallback::NotifyDialCallSuccess(uint32_t aClientId,
                                              uint32_t aCallIndex,
                                              const nsAString& aNumber)
 {
+  if (!mTelephony) {
+    return NS_ERROR_FAILURE;
+  }
   RefPtr<TelephonyCallId> id = mTelephony->CreateCallId(aNumber);
   RefPtr<TelephonyCall> call =
       mTelephony->CreateCall(id, aClientId, aCallIndex,
@@ -100,6 +103,36 @@ TelephonyDialCallback::NotifyDialMMISuccessWithInteger(const nsAString& aStatusM
   result.mStatusMessage.Assign(aStatusMessage);
   result.mAdditionalInformation.Construct().SetAsUnsignedShort() = aAdditionalInformation;
 
+  return NotifyDialMMISuccess(cx, result);
+}
+
+NS_IMETHODIMP
+TelephonyDialCallback::NotifyDialMMISuccessWithSession(uint32_t aClientId,
+                                                       const nsAString& aStatusMessage)
+{
+  AutoJSAPI jsapi;
+  if (NS_WARN_IF(!jsapi.Init(mWindow))) {
+    return NS_ERROR_FAILURE;
+  }
+
+  JSContext* cx = jsapi.cx();
+
+  RootedDictionary<MozMMIResult> result(cx);
+  result.mSuccess = true;
+  result.mServiceCode.Assign(mServiceCode);
+  result.mStatusMessage.Assign(aStatusMessage);
+
+  nsCOMPtr<nsITelephonyService> service = do_GetService(TELEPHONY_SERVICE_CONTRACTID);
+  RefPtr<USSDSession> session = new USSDSession(mWindow, service, aClientId);
+
+  JS::Rooted<JS::Value> jsAdditionalInformation(cx);
+  if (!ToJSValue(cx, session, &jsAdditionalInformation)) {
+    JS_ClearPendingException(cx);
+    return NS_ERROR_TYPE_ERR;
+  }
+
+  result.mAdditionalInformation.Construct().SetAsObject() =
+    &jsAdditionalInformation.toObject();
   return NotifyDialMMISuccess(cx, result);
 }
 

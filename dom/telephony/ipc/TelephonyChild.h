@@ -89,6 +89,9 @@ private:
   DoResponse(const DialResponseMMISuccess& aResponse);
 
   bool
+  DoResponse(const DialResponseSessionSuccess& aResponse);
+
+  bool
   DoResponse(const DialResponseMMIError& aResponse);
 
   nsCOMPtr<nsITelephonyListener> mListener;

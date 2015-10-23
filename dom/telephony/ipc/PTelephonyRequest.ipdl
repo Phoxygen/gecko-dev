@@ -47,6 +47,11 @@ struct DialResponseMMIError
   AdditionalInformation additionalInformation;
 };
 
+struct DialResponseSessionSuccess {
+  uint32_t clientId;
+  nsString statusMessage;
+};
+
 union IPCTelephonyResponse
 {
   EnumerateCallsResponse;
@@ -59,6 +64,7 @@ union IPCTelephonyResponse
   DialResponseCallSuccess;
   DialResponseMMISuccess;
   DialResponseMMIError;
+  DialResponseSessionSuccess;
 };
 
 protocol PTelephonyRequest
