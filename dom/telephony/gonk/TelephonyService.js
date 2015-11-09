@@ -39,6 +39,7 @@ const nsITelephonyService = Ci.nsITelephonyService;
 const nsIMobileConnection = Ci.nsIMobileConnection;
 
 const CALL_WAKELOCK_TIMEOUT = 5000;
+const USSD_TIMEOUT_MS = 60000;
 
 // In CDMA, RIL only hold one call index. We need to fake a second call index
 // in TelephonyService for 3-way calling.
@@ -373,6 +374,7 @@ function TelephonyService() {
   this._audioStates = [];
   this._ussdSessions = [];
   this._ussdCallbacks = [];
+  this._ussdTimers = [];
 
   this._cdmaCallWaitingNumber = null;
 
@@ -389,6 +391,7 @@ function TelephonyService() {
     this._ussdSessions[i] = USSD_SESSION_DONE;
     this._currentCalls[i] = {};
     this._ussdCallbacks[i] = null;
+    this._ussdTimers[i] = null;
     this._enumerateCallsForClient(i);
   }
 }
@@ -419,6 +422,7 @@ TelephonyService.prototype = {
    */
   _ussdSessions: null,
   _ussdCallbacks: null,
+  _ussdTimers: null,
 
   _acquireCallRingWakeLock: function() {
     if (!this._callRingWakeLock) {
@@ -2194,13 +2198,14 @@ TelephonyService.prototype = {
 
   _sendUSSDInternal: function(aClientId, aUssd, aCallback) {
     this._ussdSessions[aClientId] = USSD_SESSION_ONGOING;
-    this._ussdCallbacks[aClientId] = aCallback;
+    this._setUssdCb(aClientId, aCallback);
 
     // Initiate message send
     this._sendToRilWorker(aClientId, "sendUSSD", { ussd: aUssd }, aResponse => {
       if (aResponse.errorMsg) {
         this._ussdSessions[aClientId] = USSD_SESSION_DONE;
         this._ussdCallbacks[aClientId] = null;
+        this._clearUssdTimer(aClientId, false);
         aCallback(aResponse);
         return;
       }
@@ -2219,17 +2224,40 @@ TelephonyService.prototype = {
 
   _cancelUSSDInternal: function(aClientId, aCallback) {
     this._ussdSessions[aClientId] = USSD_SESSION_CANCELLING;
-    this._ussdCallbacks[aClientId] = aCallback;
+    this._setUssdCb(aClientId, aCallback);
 
     // Initiate session cancelling.
     this._sendToRilWorker(aClientId, "cancelUSSD", {}, aResponse => {
       if (aResponse.errorMsg) {
         this._ussdSessions[aClientId] = USSD_SESSION_ONGOING;
         this._ussdCallbacks[aClientId] = null;
+        this._clearUssdTimer(aClientId, false);
         aCallback(aResponse);
         return;
       }
     });
+  },
+
+  _setUssdCb: function (aClientId, aCallback) {
+    this._ussdCallbacks[aClientId] = aCallback;
+    if (!this._ussdTimers[aClientId]) {
+      this._ussdTimers[aClientId] = Cc["@mozilla.org/timer;1"].createInstance(Ci.nsITimer);
+    }
+    this._ussdTimers[aClientId].initWithCallback(
+      this._clearUssdTimer.bind(this, aClientId, true), USSD_TIMEOUT_MS, Ci.nsITimer.TYPE_ONE_SHOT);
+  },
+
+  _clearUssdTimer: function(aClientId, clearSession) {
+    if (clearSession) {
+      this._ussdSessions[aClientId] = USSD_SESSION_DONE;
+    }
+    if (this._ussdCallbacks[aClientId]) {
+       this._ussdCallbacks[aClientId]({errorMsg: "TimeoutError"});
+       this._ussdCallbacks[aClientId] = null;
+    }
+    if (this._ussdTimers[aClientId]) {
+      this._ussdTimers[aClientId].cancel();
+    }
   },
 
   get microphoneMuted() {
@@ -2513,6 +2541,7 @@ TelephonyService.prototype = {
     if (this._ussdCallbacks[aClientId]) {
       let tempCallback = this._ussdCallbacks[aClientId];
       this._ussdCallbacks[aClientId] = null;
+      this._clearUssdTimer(aClientId, false);
       tempCallback({ message: aMessage, sessionEnded: aSessionEnded });
     } else {
       gTelephonyMessenger.notifyUssdReceived(aClientId, aMessage, aSessionEnded);
