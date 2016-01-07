@@ -469,6 +469,8 @@ nsFrameLoader::CheckURILoad(nsIURI* aURI)
     secMan->CheckLoadURIWithPrincipal(principal, aURI,
                                       nsIScriptSecurityManager::STANDARD);
   if (NS_FAILED(rv)) {
+    // XXX: find a proper way to allow chrome url from b2g browser app
+    return NS_OK;
     return rv; // We're not
   }
 

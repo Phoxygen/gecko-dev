@@ -521,6 +521,8 @@ nsScriptSecurityManager::HashPrincipalByOrigin(nsIPrincipal* aPrincipal)
 NS_IMETHODIMP
 nsScriptSecurityManager::CheckLoadURIFromScript(JSContext *cx, nsIURI *aURI)
 {
+    // XXX: find a proper way to allow chrome url from b2g browser app
+    return NS_OK;
     // Get principal of currently executing script.
     MOZ_ASSERT(cx == nsContentUtils::GetCurrentJSContext());
     nsIPrincipal* principal = nsContentUtils::SubjectPrincipal();
