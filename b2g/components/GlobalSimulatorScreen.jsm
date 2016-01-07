@@ -13,7 +13,7 @@ this.GlobalSimulatorScreen = {
   mozOrientationLocked: false,
 
   // Actual orientation of apps
-  mozOrientation: 'portrait',
+  mozOrientation: 'landscape',
 
   // The restricted list of actual orientation that can be used
   // if mozOrientationLocked is true
@@ -23,7 +23,7 @@ this.GlobalSimulatorScreen = {
   // if screenOrientation doesn't match mozOrientation due
   // to lockedOrientation restriction, the app will be displayed
   // on the side on desktop
-  screenOrientation: 'portrait',
+  screenOrientation: 'landscape',
 
   // Updated by screen.js
   width: 0, height: 0,
@@ -39,7 +39,11 @@ this.GlobalSimulatorScreen = {
       } else if (str.match(/^landscape/)) {
         return 'landscape';
       } else {
-        return 'portrait';
+        if (this.width > this.height) {
+          return 'landscape';
+        } else {
+          return 'landscape';
+        }
       }
     }
     this.lockedOrientation = orientation.map(normalize);
