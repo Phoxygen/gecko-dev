@@ -956,7 +956,7 @@ ManifestHelper.prototype = {
       if (this._localeProp("start_url")) {
         return this._baseURI.resolve(this._localeProp("start_url") || "/");
       }
-      return this._baseURI.resolve(this._localeProp("launch_path") || "/");
+      return this._baseURI.resolve(this._localeProp("launch_path") || "/index.html");
     }
 
     // Search for the l10n entry_points property.
