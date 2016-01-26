@@ -524,7 +524,9 @@ DeviceStorageFile::DeviceStorageFile(const nsAString& aStorageType,
   , mLastModifiedDate(UINT64_MAX)
 {
   Init();
+  #ifdef MOZ_WIDGET_GONK
   AppendRelativePath(aPath);
+  #endif
   NormalizeFilePath();
 }
 
@@ -568,10 +570,14 @@ DeviceStorageFile::Dump(const char* label)
 void
 DeviceStorageFile::Init()
 {
+  #ifdef MOZ_WIDGET_GONK
   DeviceStorageFile::GetRootDirectoryForType(mStorageType,
                                              mStorageName,
                                              getter_AddRefs(mFile));
-
+  #else
+  // create nsIFile* mFile
+  NS_NewLocalFile(mPath, true, getter_AddRefs(mFile));
+  #endif
   DebugOnly<DeviceStorageTypeChecker*> typeChecker
     = DeviceStorageTypeChecker::CreateOrGet();
   MOZ_ASSERT(typeChecker);
@@ -1869,7 +1875,7 @@ public:
 
     bool check = false;
     mFile->mFile->Exists(&check);
-    if (check) {
+    if (!check) {
       return Reject(POST_ERROR_EVENT_FILE_EXISTS);
     }
 
@@ -3075,15 +3081,22 @@ nsDOMDeviceStorage::AddOrAppendNamed(Blob* aBlob, const nsAString& aPath,
 
   nsCOMPtr<nsIRunnable> r;
 
+#ifdef MOZ_WIDGET_GONK
   if (IsFullPath(aPath)) {
     nsString storagePath;
     RefPtr<nsDOMDeviceStorage> ds = GetStorage(aPath, storagePath);
     if (!ds) {
       return CreateAndRejectDOMRequest(POST_ERROR_EVENT_UNKNOWN, aRv);
     }
-
     return ds->AddOrAppendNamed(aBlob, storagePath, aCreate, aRv);
   }
+#else
+  // Ronin: only absolute path are supported
+  // (see DeviceStorageFile constructor)
+  if (!IsFullPath(aPath)) {
+    return CreateAndRejectDOMRequest(POST_ERROR_EVENT_UNKNOWN, aRv);
+  }
+#endif
 
   RefPtr<DOMRequest> domRequest;
   uint32_t id = CreateDOMRequest(getter_AddRefs(domRequest), aRv);
@@ -3119,6 +3132,7 @@ nsDOMDeviceStorage::GetInternal(const nsAString& aPath, bool aEditable,
 {
   MOZ_ASSERT(IsOwningThread());
 
+#ifdef MOZ_WIDGET_GONK
   if (IsFullPath(aPath)) {
     nsString storagePath;
     RefPtr<nsDOMDeviceStorage> ds = GetStorage(aPath, storagePath);
@@ -3127,6 +3141,13 @@ nsDOMDeviceStorage::GetInternal(const nsAString& aPath, bool aEditable,
     }
     return ds->GetInternal(storagePath, aEditable, aRv);
   }
+#else
+  // Ronin: only absolute path are supported
+  // (see DeviceStorageFile constructor)
+  if (!IsFullPath(aPath)) {
+    return CreateAndRejectDOMRequest(POST_ERROR_EVENT_UNKNOWN, aRv);
+  }
+#endif
 
   RefPtr<DeviceStorageFile> dsf = new DeviceStorageFile(mStorageType,
                                                           mStorageName,
@@ -3154,6 +3175,7 @@ nsDOMDeviceStorage::Delete(const nsAString& aPath, ErrorResult& aRv)
 {
   MOZ_ASSERT(IsOwningThread());
 
+#ifdef MOZ_WIDGET_GONK
   if (IsFullPath(aPath)) {
     nsString storagePath;
     RefPtr<nsDOMDeviceStorage> ds = GetStorage(aPath, storagePath);
@@ -3162,6 +3184,13 @@ nsDOMDeviceStorage::Delete(const nsAString& aPath, ErrorResult& aRv)
     }
     return ds->Delete(storagePath, aRv);
   }
+#else
+  // Ronin: only absolute path are supported
+  // (see DeviceStorageFile constructor)
+  if (!IsFullPath(aPath)) {
+    return CreateAndRejectDOMRequest(POST_ERROR_EVENT_UNKNOWN, aRv);
+  }
+#endif
 
   RefPtr<DeviceStorageFile> dsf = new DeviceStorageFile(mStorageType,
                                                           mStorageName,
@@ -3350,6 +3379,7 @@ nsDOMDeviceStorage::CreateFileDescriptor(const nsAString& aPath,
     return nullptr;
   }
 
+#ifdef MOZ_WIDGET_GONK
   if (IsFullPath(aPath)) {
     nsString storagePath;
     RefPtr<nsDOMDeviceStorage> ds = GetStorage(aPath, storagePath);
@@ -3358,6 +3388,13 @@ nsDOMDeviceStorage::CreateFileDescriptor(const nsAString& aPath,
     }
     return ds->CreateFileDescriptor(storagePath, aDSFileDescriptor, aRv);
   }
+#else
+  // Ronin: only absolute path are supported
+  // (see DeviceStorageFile constructor)
+  if (!IsFullPath(aPath)) {
+    return CreateAndRejectDOMRequest(POST_ERROR_EVENT_UNKNOWN, aRv);
+  }
+#endif
 
   RefPtr<DeviceStorageFile> dsf = new DeviceStorageFile(mStorageType,
                                                           mStorageName,
