@@ -309,18 +309,18 @@ DeviceStorageStatics::GetDir(DeviceStorageType aType)
 
   nsCOMPtr<nsIFile> file;
   switch (aType) {
-    case TYPE_APPS:
-    case TYPE_CRASHES:
-    case TYPE_OVERRIDE:
-      file = sInstance->mDirs[aType];
-      return file.forget();
+    case TYPE_SDCARD:
+      // use overrideRootDir only for 'sdcard'
+      // see desktop.js
+      break;
     default:
+      file = sInstance->mDirs[aType];
+      if (file) {
+        return file.forget();
+      }
       break;
   }
 
-  // In testing, we default all device storage types to a temp directory.
-  // This is only initialized if the preference device.storage.testing
-  // was set to true, or if device.storage.overrideRootDir is set.
   file = sInstance->mDirs[TYPE_OVERRIDE];
   if (!file) {
     file = sInstance->mDirs[aType];
