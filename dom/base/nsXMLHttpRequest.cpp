@@ -1691,10 +1691,6 @@ nsXMLHttpRequest::Open(const nsACString& inMethod, const nsACString& url,
                nsILoadInfo::SEC_FORCE_INHERIT_PRINCIPAL;
   }
 
-  if (mIsAnon) {
-    secFlags |= nsILoadInfo::SEC_COOKIES_OMIT;
-  }
-
   // If we have the document, use it. Unfortunately, for dedicated workers
   // 'doc' ends up being the parent document, which is not the document
   // that we want to use. So make sure to avoid using 'doc' in that situation.
@@ -2798,17 +2794,18 @@ nsXMLHttpRequest::Send(nsIVariant* aVariant, const Nullable<RequestBody>& aBody)
 
   ResetResponse();
 
-  if (!IsSystemXHR() && !mIsAnon &&
-      (mState & XML_HTTP_REQUEST_AC_WITH_CREDENTIALS)) {
+  bool withCredentials = !!(mState & XML_HTTP_REQUEST_AC_WITH_CREDENTIALS);
+
+  if (!IsSystemXHR() && withCredentials) {
     // This is quite sad. We have to create the channel in .open(), since the
     // chrome-only xhr.channel API depends on that. However .withCredentials
     // can be modified after, so we don't know what to set the
-    // SEC_COOKIES_INCLUDE flag to when the channel is
+    // SEC_REQUIRE_CORS_WITH_CREDENTIALS flag to when the channel is
     // created. So set it here using a hacky internal API.
 
     // Not doing this for system XHR uses since those don't use CORS.
     nsCOMPtr<nsILoadInfo> loadInfo = mChannel->GetLoadInfo();
-    static_cast<LoadInfo*>(loadInfo.get())->SetIncludeCookiesSecFlag();
+    static_cast<LoadInfo*>(loadInfo.get())->SetWithCredentialsSecFlag();
   }
 
   // Blocking gets are common enough out of XHR that we should mark
@@ -2830,7 +2827,10 @@ nsXMLHttpRequest::Send(nsIVariant* aVariant, const Nullable<RequestBody>& aBody)
     internalHttpChannel->SetResponseTimeoutEnabled(false);
   }
 
-  if (!mIsAnon) {
+  if (mIsAnon) {
+    AddLoadFlags(mChannel, nsIRequest::LOAD_ANONYMOUS);
+  }
+  else {
     AddLoadFlags(mChannel, nsIChannel::LOAD_EXPLICIT_CREDENTIALS);
   }
 
@@ -3250,9 +3250,8 @@ nsXMLHttpRequest::SetWithCredentials(bool aWithCredentials, ErrorResult& aRv)
   // Return error if we're already processing a request.  Note that we can't use
   // ReadyState() here, because it can't differentiate between "opened" and
   // "sent", so we use mState directly.
-  if ((!(mState & XML_HTTP_REQUEST_UNSENT) &&
-       !(mState & XML_HTTP_REQUEST_OPENED)) ||
-      mIsAnon) {
+  if (!(mState & XML_HTTP_REQUEST_UNSENT) &&
+      !(mState & XML_HTTP_REQUEST_OPENED)) {
     aRv.Throw(NS_ERROR_DOM_INVALID_STATE_ERR);
     return;
   }
