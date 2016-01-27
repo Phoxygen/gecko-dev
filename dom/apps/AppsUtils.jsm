@@ -892,7 +892,12 @@ ManifestHelper.prototype = {
   },
 
   get orientation() {
-    return this._localeProp("orientation");
+    // XXX orientation is disabled for ronin for now.
+    // We might want to:
+    // - decide how to reactivate it
+    // - find a way to target ronin without affecting mulet
+    return "default";
+    //return this._localeProp("orientation");
   },
 
   get package_path() {
@@ -956,7 +961,7 @@ ManifestHelper.prototype = {
       if (this._localeProp("start_url")) {
         return this._baseURI.resolve(this._localeProp("start_url") || "/");
       }
-      return this._baseURI.resolve(this._localeProp("launch_path") || "/index.html");
+      return this._baseURI.resolve(this._localeProp("launch_path") || "/");
     }
 
     // Search for the l10n entry_points property.
