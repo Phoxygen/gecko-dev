@@ -537,9 +537,6 @@ this.DOMApplicationRegistry = {
 
   // Installs a 3rd party app.
   installPreinstalledApp: function installPreinstalledApp(aId) {
-    if (!AppConstants.MOZ_B2GDROID && AppConstants.platform !== "gonk") {
-      return false;
-    }
 
     // In some cases, the app might be already installed under a different ID but
     // with the same manifestURL. In that case, the only content of the webapp will
@@ -553,7 +550,9 @@ this.DOMApplicationRegistry = {
     let app = this.webapps[destId];
     let baseDir, isPreinstalled = false;
     try {
-      baseDir = FileUtils.getDir("coreAppsDir", ["webapps", aId], false);
+      let coreAppsBaseDir = app.basePath == this.getCoreAppsBasePath()
+                            ? "coreAppsDir" : DIRECTORY_NAME;
+      baseDir = FileUtils.getDir(coreAppsBaseDir, ["webapps", aId], false);
       if (!baseDir.exists()) {
         return isPreinstalled;
       } else if (!baseDir.directoryEntries.hasMoreElements()) {
@@ -595,7 +594,10 @@ this.DOMApplicationRegistry = {
     // We copy this app to DIRECTORY_NAME/$destId, and set the base path as needed.
     let destDir = FileUtils.getDir(DIRECTORY_NAME, ["webapps", destId], true, true);
 
-    filesToMove.forEach(function(aFile) {
+    // we only need to move the files in gonk or MOZ_B2GDROID
+    // for desktop platform, we use the profile dir for everything
+    if (AppConstants.MOZ_B2GDROID || AppConstants.platform === "gonk") {
+      filesToMove.forEach(function(aFile) {
         let file = baseDir.clone();
         file.append(aFile);
         try {
@@ -604,6 +606,7 @@ this.DOMApplicationRegistry = {
           debug("Error: Failed to copy " + file.path + " to " + destDir.path);
         }
       });
+    }
 
     app.installState = "installed";
     app.cachePath = app.basePath;
