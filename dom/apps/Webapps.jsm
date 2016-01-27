@@ -3326,6 +3326,9 @@ this.DOMApplicationRegistry = {
           let fileNames = ["manifest.webapp", "update.webapp", "manifest.json"];
           for (let fileName of fileNames) {
             manifestCache[id] = yield AppsUtils.loadJSONAsync(OS.Path.join(dir.path, fileName));
+            // FIXME dirty hack for ronin: we force the orientation to default
+            // to workaround apps declaring a "orientation": "portrait"
+            manifestCache[id].orientation = "default";
             if (manifestCache[id]) {
               break;
             }
