@@ -396,6 +396,7 @@ DOMDownloadImpl.prototype = {
     // storage path used for our downloaded file in case our download
     // was re-targetted to a different storage and/or filename.
     if (changedProps["path"]) {
+#ifdef MOZ_WIDGET_GONK
       let storages = this._window.navigator.getDeviceStorages("sdcard");
       let preferredStorageName;
       // Use the first one or the default storage. Just like jsdownloads picks
@@ -419,6 +420,11 @@ DOMDownloadImpl.prototype = {
                                 volume.mountPoint.length + 1);
         }
       }
+#else
+      debug("storatePath == path == |" + this.path + "|");
+      this.storageName = 'sdcard';
+      this.storagePath = this.path;
+#endif
     }
 
     if (aDownload.error) {
